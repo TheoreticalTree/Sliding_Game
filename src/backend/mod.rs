@@ -8,6 +8,13 @@ use std::collections::HashSet;
 
 const MAXIMUM_STEP_NUMBER: usize = 100;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum GameState {
+    Running,
+    Won,
+    Lost(String),
+}
+
 pub struct Board {
     board: Vec<Box<dyn Block>>,
     x_size: Index,
@@ -16,11 +23,16 @@ pub struct Board {
     num_agents_alive: u8,
     num_agents_must_finish: u8,
     agent_positions: Vec<Coordinate>,
+    game_state: GameState,
 }
 
 pub struct ActionLog {}
 
 impl Board {
+    pub fn get_game_state(&self) -> &GameState {
+        &self.game_state
+    }
+
     pub fn read_block(&self, coordinate: Coordinate) -> &Box<dyn Block> {
         let index = self.coordinate_to_index(coordinate);
         &self.board[index]
@@ -32,6 +44,7 @@ impl Board {
 
     pub fn can_move_agent(&self, agent: AgentID, direction: Direction) -> bool {
         assert!(agent < self.num_agents as AgentID);
+        assert!(self.game_state == GameState::Running);
 
         let target_coordinate = self.agent_positions[agent as usize].move_direction(direction);
 
@@ -44,6 +57,7 @@ impl Board {
 
     pub fn move_agent(&mut self, agent: AgentID, direction: Direction) -> ActionLog {
         assert!(agent < self.num_agents as AgentID);
+        assert!(self.game_state == GameState::Running);
 
         let current_coordinate: Coordinate = self.agent_positions[agent as usize];
         let target_coordinate: Coordinate =
@@ -66,6 +80,7 @@ impl Board {
 
     pub fn slide_agent(&mut self, start_agent: AgentID, direction: Direction) -> ActionLog {
         assert!(start_agent < self.num_agents as AgentID);
+        assert!(self.game_state == GameState::Running);
 
         let mut current_coordinate: Coordinate = self.agent_positions[start_agent as usize];
 
@@ -86,6 +101,7 @@ impl Board {
             if self.out_of_bounds(target_coordinate) {
                 self.move_block(current_coordinate, OUT_OF_BOUND);
                 current_coordinate = OUT_OF_BOUND;
+                current_sliding = SlideType::NoSlide;
             } else {
                 match self.get_block(target_coordinate).on_hit(current_direction) {
                     HitResult::Stop => {
@@ -106,8 +122,8 @@ impl Board {
             steps_so_far += 1;
 
             if steps_so_far > MAXIMUM_STEP_NUMBER {
-                //TODO this should be nicer
-                panic!("Reached definitely infinite loop, trust me bro");
+                self.game_state = GameState::Lost(String::from("Hit an infinite loop :("));
+                return ActionLog {};
             }
         }
 
@@ -130,7 +146,7 @@ impl Board {
 
             if self.num_agents_alive < self.num_agents_must_finish {
                 //TODO write logic for loosing the game
-                panic!("You killed too many agents");
+                self.game_state = GameState::Lost(String::from("Killed to many Agents :()"));
             }
 
             //TODO check if destroying block sliding out has effect
@@ -184,6 +200,7 @@ impl Board {
             num_agents_alive: 2,
             num_agents_must_finish: 2,
             agent_positions: vec![],
+            game_state: GameState::Running,
         };
 
         for _ in 0..25 {
