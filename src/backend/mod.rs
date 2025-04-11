@@ -8,7 +8,7 @@ use std::collections::HashSet;
 
 const MAXIMUM_STEP_NUMBER: usize = 100;
 
-struct Board {
+pub struct Board {
     board: Vec<Box<dyn Block>>,
     x_size: Index,
     y_size: Index,
@@ -18,7 +18,7 @@ struct Board {
     agent_positions: Vec<Coordinate>,
 }
 
-struct ActionLog {}
+pub struct ActionLog {}
 
 impl Board {
     pub fn read_block(&self, coordinate: Coordinate) -> &Box<dyn Block> {
@@ -28,6 +28,18 @@ impl Board {
 
     pub fn get_dimensions(&self) -> (Index, Index) {
         (self.x_size, self.y_size)
+    }
+
+    pub fn can_move_agent(&self, agent: AgentID, direction: Direction) -> bool {
+        assert!(agent < self.num_agents as AgentID);
+
+        let target_coordinate = self.agent_positions[agent as usize].move_direction(direction);
+
+        if self.out_of_bounds(target_coordinate) {
+            false
+        } else {
+            self.read_block(target_coordinate).can_enter()
+        }
     }
 
     pub fn move_agent(&mut self, agent: AgentID, direction: Direction) -> ActionLog {
@@ -52,10 +64,10 @@ impl Board {
         ActionLog {}
     }
 
-    pub fn slide_agent(&mut self, startAgent: AgentID, direction: Direction) -> ActionLog {
-        assert!(startAgent < self.num_agents as AgentID);
+    pub fn slide_agent(&mut self, start_agent: AgentID, direction: Direction) -> ActionLog {
+        assert!(start_agent < self.num_agents as AgentID);
 
-        let mut current_coordinate: Coordinate = self.agent_positions[startAgent as usize];
+        let mut current_coordinate: Coordinate = self.agent_positions[start_agent as usize];
 
         let mut current_sliding: SlideType =
             self.get_block(current_coordinate).start_slide(direction);
@@ -63,7 +75,12 @@ impl Board {
 
         let mut steps_so_far: usize = 0;
 
-        while current_sliding == SlideType::NoSlide {
+        while current_sliding != SlideType::NoSlide {
+            print!(
+                "Current Position: ({}, {})\n",
+                current_coordinate.x, current_coordinate.y
+            );
+
             let target_coordinate = current_coordinate.move_direction(current_direction);
 
             if self.out_of_bounds(target_coordinate) {
@@ -158,7 +175,7 @@ impl Board {
         coordinate.x >= self.x_size || coordinate.y >= self.y_size
     }
 
-    fn new_test() -> Self {
+    pub fn new_test() -> Self {
         let mut ret: Board = Board {
             board: vec![],
             x_size: 5,
@@ -175,7 +192,7 @@ impl Board {
 
         ret.set_block(
             Coordinate { x: 4, y: 0 },
-            Box::new(BasicBlock::new(true, &vec![2], SlideType::FastSlide, 0)),
+            Box::new(BasicBlock::new(true, &vec![0], SlideType::FastSlide, 0)),
         );
         ret.set_block(
             Coordinate { x: 0, y: 1 },
@@ -193,6 +210,8 @@ impl Board {
             Coordinate { x: 4, y: 4 },
             Box::new(BasicBlock::new(true, &vec![1], SlideType::FastSlide, 0)),
         );
+
+        ret.agent_positions = vec![Coordinate { x: 4, y: 0 }, Coordinate { x: 4, y: 4 }];
 
         ret
     }

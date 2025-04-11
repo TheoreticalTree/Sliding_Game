@@ -1,4 +1,199 @@
 mod backend;
+use backend::Board;
 mod utils;
+use utils::{AgentID, Coordinate, Direction, Index, TextureType};
 
-fn main() {}
+use std::collections::HashSet;
+use std::io;
+
+//use colored::Colorize;
+
+fn print_board(board: &Board) {
+    let dimensions: (Index, Index) = board.get_dimensions();
+
+    for y in 0..dimensions.0 {
+        for x in 0..dimensions.0 {
+            match board.read_block(Coordinate { x, y }).get_texture() {
+                TextureType::BasicImpassable => {
+                    print!("█████");
+                }
+                TextureType::BasicBlock => {
+                    print!("▒▒▒▒▒");
+                }
+                TextureType::Goal(_) => {
+                    print!("▚▚▚▚▚");
+                }
+                TextureType::None => {
+                    print!("     ");
+                }
+            }
+        }
+        print!("\n");
+        for x in 0..dimensions.0 {
+            match board.read_block(Coordinate { x, y }).get_texture() {
+                TextureType::BasicImpassable => {
+                    print!("█   █");
+                }
+                TextureType::BasicBlock => {
+                    let agents: HashSet<AgentID> =
+                        board.read_block(Coordinate { x, y }).get_agents();
+                    print!(
+                        "▒{} {}▒",
+                        if agents.contains(&0) { "0" } else { " " },
+                        if agents.contains(&1) { "1" } else { " " }
+                    );
+                }
+                TextureType::Goal(_) => {
+                    let agents: HashSet<AgentID> =
+                        board.read_block(Coordinate { x, y }).get_agents();
+                    print!(
+                        "▚{} {}▚",
+                        if agents.contains(&0) { "0" } else { " " },
+                        if agents.contains(&1) { "1" } else { " " }
+                    );
+                }
+                TextureType::None => {
+                    print!("     ");
+                }
+            }
+        }
+        print!("\n");
+        for x in 0..dimensions.0 {
+            match board.read_block(Coordinate { x, y }).get_texture() {
+                TextureType::BasicImpassable => {
+                    print!("█   █");
+                }
+                TextureType::BasicBlock => {
+                    print!("▒   ▒");
+                }
+                TextureType::Goal(num) => {
+                    print!(
+                        "▚{}/{}▚",
+                        num,
+                        board.read_block(Coordinate { x, y }).get_agents().len()
+                    );
+                }
+                TextureType::None => {
+                    print!("     ");
+                }
+            }
+        }
+        print!("\n");
+        for x in 0..dimensions.0 {
+            match board.read_block(Coordinate { x, y }).get_texture() {
+                TextureType::BasicImpassable => {
+                    print!("█   █");
+                }
+                TextureType::BasicBlock => {
+                    let agents: HashSet<AgentID> =
+                        board.read_block(Coordinate { x, y }).get_agents();
+                    print!(
+                        "▒{} {}▒",
+                        if agents.contains(&2) { "2" } else { " " },
+                        if agents.contains(&3) { "3" } else { " " }
+                    );
+                }
+                TextureType::Goal(_) => {
+                    let agents: HashSet<AgentID> =
+                        board.read_block(Coordinate { x, y }).get_agents();
+                    print!(
+                        "▚{} {}▚",
+                        if agents.contains(&2) { "2" } else { " " },
+                        if agents.contains(&3) { "3" } else { " " }
+                    );
+                }
+                TextureType::None => {
+                    print!("     ");
+                }
+            }
+        }
+        print!("\n");
+        for x in 0..dimensions.0 {
+            match board.read_block(Coordinate { x, y }).get_texture() {
+                TextureType::BasicImpassable => {
+                    print!("█████");
+                }
+                TextureType::BasicBlock => {
+                    print!("▒▒▒▒▒");
+                }
+                TextureType::Goal(_) => {
+                    print!("▚▚▚▚▚");
+                }
+                TextureType::None => {
+                    print!("     ");
+                }
+            }
+        }
+        print!("\n");
+    }
+}
+
+fn char_to_direction(input: &String) -> Result<Direction, String> {
+    if input.trim().eq(&String::from("u")) {
+        return Ok(Direction::Up);
+    }
+    if input.trim().eq(&String::from("d")) {
+        return Ok(Direction::Down);
+    }
+    if input.trim().eq(&String::from("l")) {
+        return Ok(Direction::Left);
+    }
+    if input.trim().eq(&String::from("r")) {
+        return Ok(Direction::Right);
+    }
+
+    Err(String::from("Not a direction"))
+}
+
+fn main() {
+    let mut board: Board = Board::new_test();
+    print_board(&board);
+
+    let stdin = io::stdin();
+    let input = &mut String::new();
+
+    loop {
+        input.clear();
+        print!("Which Agent do you want to move?\n");
+        match stdin.read_line(input) {
+            Err(_) => {
+                print!("Somehow that input failed, please try again.\n");
+                continue;
+            }
+            Ok(_) => match input.trim().parse::<AgentID>() {
+                Ok(agent) => {
+                    input.clear();
+                    print!("Which direction do you want to move in (u, d, l, r)?\n");
+
+                    match stdin.read_line(input) {
+                        Err(_) => {
+                            print!("Reading the direction somehow failed\n");
+                        }
+                        Ok(_) => (),
+                    }
+
+                    match char_to_direction(&input) {
+                        Err(_) => {
+                            print!(
+                                "That was not a direction, please use a direction(u, d, l, r)\n"
+                            );
+                            continue;
+                        }
+                        Ok(direction) => {
+                            if board.can_move_agent(agent, direction) {
+                                board.move_agent(agent, direction);
+                            } else {
+                                print!("Sliding agent {} in direction {}", agent, input);
+                                board.slide_agent(agent, direction);
+                            }
+                        }
+                    }
+                }
+                Err(_) => {
+                    print!("That was not a number.\n");
+                }
+            },
+        }
+        print_board(&board);
+    }
+}
