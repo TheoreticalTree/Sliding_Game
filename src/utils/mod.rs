@@ -59,3 +59,11 @@ pub enum HitResult {
 pub enum DestructionResult {
     None,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TextureType {
+    None,
+    BasicBlock,
+    BasicImpassable,
+    Goal(u8),
+}
