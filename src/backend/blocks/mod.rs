@@ -11,6 +11,7 @@ pub trait Block {
         false
     }
 
+    #[allow(dead_code)]
     fn can_exit(&self, _direction: Direction) -> bool {
         false
     }
@@ -33,6 +34,7 @@ pub trait Block {
     #[must_use]
     fn on_hit(&mut self, direction: Direction) -> (HitResult, StatusUpdate);
 
+    #[allow(dead_code)]
     #[must_use]
     fn on_destruction(&self) -> (DestructionResult, StatusUpdate) {
         (DestructionResult::None, StatusUpdate::nothing())

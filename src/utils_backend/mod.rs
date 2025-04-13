@@ -45,6 +45,7 @@ pub enum Direction {
 pub enum SlideType {
     NoSlide,
     FastSlide,
+    #[allow(dead_code)]
     SlowSlide(u8),
 }
 
@@ -52,12 +53,15 @@ pub enum SlideType {
 pub enum HitResult {
     Stop,
     NoResistance,
+    #[allow(dead_code)]
     MoveTo(Coordinate),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GoalType {
+    #[allow(dead_code)]
     AtLeast(u8),
+    #[allow(dead_code)]
     AtMost(u8),
     Exactly(u8),
 }
@@ -66,6 +70,7 @@ pub enum GoalType {
 pub enum ProgressUpdates {
     IncreaseStat(String, u8),
     DecreaseStat(String, u8),
+    #[allow(dead_code)]
     SetStat(String, u8),
 }
 
@@ -74,6 +79,7 @@ pub enum GameSignal {}
 
 pub struct StatusUpdate {
     pub progress_updates: Vec<ProgressUpdates>,
+    #[allow(dead_code)]
     pub signals: Vec<GameSignal>,
 }
 
