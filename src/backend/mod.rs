@@ -386,9 +386,13 @@ impl Board {
         match level_table.get("y_size") {
             None => return Err(String::from("Missing y dimension\n")),
             Some(val) => match val {
-                Value::Integer(val_int) => self.x_size = *val_int as u8,
+                Value::Integer(val_int) => self.y_size = *val_int as u8,
                 _ => return Err(String::from("y dimension was not an integer")),
             },
+        }
+
+        for _ in 0..(self.x_size + 1) * (self.y_size + 1) {
+            self.board.push(Box::new(Air::new()));
         }
 
         match level_table.get("block") {
@@ -441,6 +445,10 @@ impl Board {
                                             x: x_as_int,
                                             y: y_as_int,
                                         }) {
+                                            print!(
+                                                "Placing block at position ({}, {}) with dimensions {}, {}",
+                                                x_as_int, y_as_int, self.x_size, self.y_size
+                                            );
                                             return Err(String::from("Block out of bounds"));
                                         }
                                         match block_factory(block) {

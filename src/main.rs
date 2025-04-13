@@ -1,9 +1,7 @@
 mod backend;
-use backend::{Board, GameState};
+use backend::{Board, BoardLoadingError, GameState};
 mod utils_backend;
 use utils_backend::{AgentID, Coordinate, Direction, Index, TextureType};
-
-mod io_backend;
 
 use std::collections::HashSet;
 use std::io;
@@ -210,7 +208,16 @@ fn run_game_console() -> () {
 
 fn main() {
     //run_game_console();
-    Board::from_file("levels/testing_levels/example0.toml");
+    match Board::from_file("levels/testing_levels/example0.toml") {
+        Err(msg) => match msg {
+            BoardLoadingError::FileNotFound => print!("File not found"),
+            BoardLoadingError::FileReadingError => print!("File could not be read"),
+            BoardLoadingError::TOMLParsingError => print!("TOML parsing failed"),
+            BoardLoadingError::BoardDescriptionError(text) => print!("{}", text),
+        },
+        _ => (),
+    }
+    print!("\n\n\n");
 
     run_game_console();
 }
