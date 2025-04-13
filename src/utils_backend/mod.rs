@@ -55,6 +55,36 @@ pub enum HitResult {
     MoveTo(Coordinate),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GoalType {
+    AtLeast(u8),
+    AtMost(u8),
+    Exactly(u8),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ProgressUpdates {
+    IncreaseStat(String, u8),
+    DecreaseStat(String, u8),
+    SetStat(String, u8),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GameSignal {}
+
+pub struct StatusUpdate {
+    pub progress_updates: Vec<ProgressUpdates>,
+    pub signals: Vec<GameSignal>,
+}
+
+impl StatusUpdate {
+    pub fn nothing() -> Self {
+        StatusUpdate {
+            progress_updates: vec![],
+            signals: vec![],
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DestructionResult {
     None,

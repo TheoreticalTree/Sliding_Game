@@ -1,7 +1,7 @@
 mod backend;
-use backend::Board;
-mod utils;
-use utils::{AgentID, Coordinate, Direction, Index, TextureType};
+use backend::{Board, GameState};
+mod utils_backend;
+use utils_backend::{AgentID, Coordinate, Direction, Index, TextureType};
 
 use std::collections::HashSet;
 use std::io;
@@ -152,7 +152,7 @@ fn main() {
     let stdin = io::stdin();
     let input = &mut String::new();
 
-    loop {
+    while board.get_game_state() == GameState::Running {
         input.clear();
         print!("Which Agent do you want to move?\n");
         match stdin.read_line(input) {
@@ -195,5 +195,13 @@ fn main() {
             },
         }
         print_board(&board);
+    }
+
+    match board.get_game_state() {
+        GameState::Won => print!("\n\nCONGRATULATIONS! YOU ARE A WINNER!\n"),
+        GameState::Lost => print!("\n\nWomp womp, you lost.\n"),
+        GameState::Running => {
+            print!("\n\nSome kind of gub relating to the game state occured.\nMost curious.")
+        }
     }
 }

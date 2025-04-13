@@ -2,17 +2,20 @@
 mod blocks;
 use blocks::{Air, BasicBlock, Block};
 
-use crate::utils::{AgentID, Coordinate, Direction, HitResult, Index, OUT_OF_BOUND, SlideType};
+use crate::utils_backend::{
+    AgentID, Coordinate, Direction, GoalType, HitResult, Index, OUT_OF_BOUND, ProgressUpdates,
+    SlideType, StatusUpdate,
+};
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 const MAXIMUM_STEP_NUMBER: usize = 100;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameState {
     Running,
     Won,
-    Lost(String),
+    Lost,
 }
 
 pub struct Board {
@@ -22,6 +25,8 @@ pub struct Board {
     num_agents: u8,
     num_agents_alive: u8,
     num_agents_must_finish: u8,
+    game_progress: HashMap<String, u8>,
+    game_goal: HashMap<String, GoalType>,
     agent_positions: Vec<Coordinate>,
     game_state: GameState,
 }
@@ -29,8 +34,8 @@ pub struct Board {
 pub struct ActionLog {}
 
 impl Board {
-    pub fn get_game_state(&self) -> &GameState {
-        &self.game_state
+    pub fn get_game_state(&self) -> GameState {
+        self.game_state
     }
 
     pub fn read_block(&self, coordinate: Coordinate) -> &Box<dyn Block> {
@@ -51,7 +56,7 @@ impl Board {
         if self.out_of_bounds(target_coordinate) {
             false
         } else {
-            self.read_block(target_coordinate).can_enter()
+            self.read_block(target_coordinate).can_enter(direction)
         }
     }
 
@@ -65,15 +70,17 @@ impl Board {
 
         if self.out_of_bounds(target_coordinate) {
             //TODO This should return a proper action log
-            return ActionLog {};
         }
 
-        if self.get_block(target_coordinate).can_enter() {
-            self.get_block(current_coordinate).remove_agent(agent);
-            self.get_block(target_coordinate).enter_agent(agent);
+        if self.get_block(target_coordinate).can_enter(direction) {
+            let mut update: StatusUpdate = self.get_block(current_coordinate).remove_agent(agent);
+            self.process_update(update);
+            update = self.get_block(target_coordinate).enter_agent(agent);
+            self.process_update(update);
             self.agent_positions[agent as usize] = target_coordinate;
-            return ActionLog {};
         }
+
+        self.check_victory();
 
         ActionLog {}
     }
@@ -84,8 +91,11 @@ impl Board {
 
         let mut current_coordinate: Coordinate = self.agent_positions[start_agent as usize];
 
-        let mut current_sliding: SlideType =
+        let slide_output: (SlideType, StatusUpdate) =
             self.get_block(current_coordinate).start_slide(direction);
+
+        self.process_update(slide_output.1);
+        let mut current_sliding: SlideType = slide_output.0;
         let current_direction = direction;
 
         let mut steps_so_far: usize = 0;
@@ -103,7 +113,9 @@ impl Board {
                 current_coordinate = OUT_OF_BOUND;
                 current_sliding = SlideType::NoSlide;
             } else {
-                match self.get_block(target_coordinate).on_hit(current_direction) {
+                let hit_result = self.get_block(target_coordinate).on_hit(current_direction);
+                self.process_update(hit_result.1);
+                match hit_result.0 {
                     HitResult::Stop => {
                         current_sliding = SlideType::NoSlide;
                     }
@@ -122,9 +134,11 @@ impl Board {
             steps_so_far += 1;
 
             if steps_so_far > MAXIMUM_STEP_NUMBER {
-                self.game_state = GameState::Lost(String::from("Hit an infinite loop :("));
+                self.game_state = GameState::Lost;
                 return ActionLog {};
             }
+
+            self.check_victory();
         }
 
         ActionLog {}
@@ -146,7 +160,7 @@ impl Board {
 
             if self.num_agents_alive < self.num_agents_must_finish {
                 //TODO write logic for loosing the game
-                self.game_state = GameState::Lost(String::from("Killed to many Agents :()"));
+                self.game_state = GameState::Lost;
             }
 
             //TODO check if destroying block sliding out has effect
@@ -164,8 +178,78 @@ impl Board {
             self.set_block(start, Box::new(Air::new()));
 
             for agent in agents_end {
-                self.get_block(end).enter_agent(agent);
+                let update: StatusUpdate = self.get_block(end).enter_agent(agent);
+                self.process_update(update);
             }
+        }
+    }
+
+    fn process_update(&mut self, update: StatusUpdate) {
+        // Handle all updates to the game stats
+        for progress_update in update.progress_updates {
+            match progress_update {
+                ProgressUpdates::IncreaseStat(name, val) => {
+                    match self.game_progress.get_mut(&name) {
+                        None => panic!("Tried to alter game stat that is not tracked"),
+                        Some(num) => *num += val,
+                    }
+                }
+                ProgressUpdates::DecreaseStat(name, val) => {
+                    match self.game_progress.get_mut(&name) {
+                        None => panic!("Tried to alter game stat that is not tracked"),
+                        Some(num) => *num -= val,
+                    }
+                }
+                ProgressUpdates::SetStat(name, val) => match self.game_progress.get_mut(&name) {
+                    None => panic!("Tried to alter game stat that is not tracked"),
+                    Some(num) => *num = val,
+                },
+            }
+        }
+
+        //TODO write signal handeling
+    }
+
+    fn check_victory(&mut self) -> () {
+        let mut all_satisfied: bool = true;
+
+        for key in self.game_goal.keys() {
+            let current: u8;
+
+            match self.game_progress.get(key) {
+                None => panic!("Game has goal that is not tracked"),
+                Some(val) => current = *val,
+            };
+
+            match self.game_goal.get(key) {
+                None => panic!("Something went very wrong with the goal map"),
+                Some(goal) => match goal {
+                    GoalType::AtLeast(num) => {
+                        if current < *num {
+                            all_satisfied = false;
+                            break;
+                        }
+                    }
+                    GoalType::AtMost(num) => {
+                        if current > *num {
+                            all_satisfied = false;
+                            break;
+                        }
+                    }
+                    GoalType::Exactly(num) => {
+                        if current != *num {
+                            all_satisfied = false;
+                            break;
+                        }
+                    }
+                },
+            }
+        }
+
+        if all_satisfied && self.game_state == GameState::Running {
+            self.game_state = GameState::Won;
+        } else if self.game_state != GameState::Lost {
+            self.game_state = GameState::Running;
         }
     }
 
@@ -199,9 +283,15 @@ impl Board {
             num_agents: 2,
             num_agents_alive: 2,
             num_agents_must_finish: 2,
+            game_progress: HashMap::new(),
+            game_goal: HashMap::new(),
             agent_positions: vec![],
             game_state: GameState::Running,
         };
+
+        ret.game_progress.insert(String::from("BlocksSatisfied"), 0);
+        ret.game_goal
+            .insert(String::from("BlocksSatisfied"), GoalType::Exactly(1));
 
         for _ in 0..25 {
             ret.board.push(Box::new(Air::new()));
