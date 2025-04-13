@@ -1,4 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+
+use toml::{Table, Value};
 
 /// Basic blocks used by the sliding game
 use crate::utils_backend::{
@@ -157,5 +159,64 @@ impl BasicBlock {
             default_slide,
             num_goal_agents,
         }
+    }
+
+    pub fn from_table(block_table: &Table) -> Result<Box<dyn Block>, String> {
+        match block_table.get("tags") {
+            None => Err(String::from("Missing Tags to construct basic block")),
+            Some(tags_wrapped) => {
+                let tags: &Table;
+                match tags_wrapped {
+                    Value::Table(t) => tags = t,
+                    _ => return Err(String::from("Missing tags block")),
+                }
+                let mut block: BasicBlock = BasicBlock {
+                    passable: true,
+                    agents: HashSet::new(),
+                    default_slide: SlideType::FastSlide,
+                    num_goal_agents: 0,
+                };
+
+                if let Some(wrapped) = tags.get(&String::from("passable")) {
+                    if let Value::Boolean(val) = wrapped {
+                        block.passable = *val;
+                    }
+                }
+                if let Some(wrapped) = tags.get(&String::from("num_goal_agents")) {
+                    if let Value::Integer(val) = wrapped {
+                        block.num_goal_agents = *val as u8;
+                    }
+                }
+                if let Some(wrapped) = tags.get(&String::from("slide")) {
+                    match wrapped {
+                        Value::String(s) if s.eq("fast") => {
+                            block.default_slide = SlideType::FastSlide
+                        }
+                        Value::Integer(i) => {
+                            if *i == 0 {
+                                block.default_slide = SlideType::NoSlide;
+                            } else {
+                                block.default_slide = SlideType::SlowSlide(*i as u8);
+                            }
+                        }
+                        _ => return Err(String::from("Block movement type not recognized")),
+                    }
+                }
+                Ok(Box::new(block))
+            }
+        }
+    }
+}
+
+pub fn block_factory(block_table: &Table) -> Result<Box<dyn Block>, String> {
+    match block_table.get(&String::from("type")) {
+        None => Err(String::from("Block type not specified")),
+        Some(block_type) => match block_type {
+            Value::String(s) if s.eq("basic_block") => match BasicBlock::from_table(block_table) {
+                Ok(block) => Ok(block),
+                Err(msg) => Err(msg),
+            },
+            _ => Err(String::from("Block type not recognized")),
+        },
     }
 }

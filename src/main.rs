@@ -3,6 +3,8 @@ use backend::{Board, GameState};
 mod utils_backend;
 use utils_backend::{AgentID, Coordinate, Direction, Index, TextureType};
 
+mod io_backend;
+
 use std::collections::HashSet;
 use std::io;
 
@@ -145,7 +147,7 @@ fn char_to_direction(input: &String) -> Result<Direction, String> {
     Err(String::from("Not a direction"))
 }
 
-fn main() {
+fn run_game_console() -> () {
     let mut board: Board = Board::new_test();
     print_board(&board);
 
@@ -204,4 +206,11 @@ fn main() {
             print!("\n\nSome kind of gub relating to the game state occured.\nMost curious.")
         }
     }
+}
+
+fn main() {
+    //run_game_console();
+    Board::from_file("levels/testing_levels/example0.toml");
+
+    run_game_console();
 }

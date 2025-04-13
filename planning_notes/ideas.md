@@ -54,3 +54,7 @@ Some objects are marked as goal objects with a number of agents that have to be 
  - Central Board Struct
     - Keeps track of where agents are
     - Gets user inputs
+ - Levels
+    - Stored in toml format
+    - define fileds:
+       - Dimension: two ints

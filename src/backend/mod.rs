@@ -1,6 +1,6 @@
 /// The backend of the sliding game
 mod blocks;
-use blocks::{Air, BasicBlock, Block};
+use blocks::{Air, BasicBlock, Block, block_factory};
 
 use crate::utils_backend::{
     AgentID, Coordinate, Direction, GoalType, HitResult, Index, OUT_OF_BOUND, ProgressUpdates,
@@ -8,6 +8,10 @@ use crate::utils_backend::{
 };
 
 use std::collections::{HashMap, HashSet};
+
+use std::fs::File;
+use std::io::Read;
+use toml::{self, Table, Value};
 
 const MAXIMUM_STEP_NUMBER: usize = 100;
 
@@ -321,5 +325,148 @@ impl Board {
         ret.agent_positions = vec![Coordinate { x: 4, y: 0 }, Coordinate { x: 4, y: 4 }];
 
         ret
+    }
+}
+
+pub enum BoardLoadingError {
+    FileNotFound,
+    FileReadingError,
+    TOMLParsingError,
+    BoardDescriptionError(String),
+}
+
+impl Board {
+    pub fn from_file(path: &str) -> Result<Self, BoardLoadingError> {
+        let mut file: File;
+        match File::open(path) {
+            Err(_) => return Err(BoardLoadingError::FileNotFound),
+            Ok(f) => file = f,
+        }
+
+        let mut board: Board = Board {
+            board: vec![],
+            x_size: 0,
+            y_size: 0,
+            num_agents: 0,
+            num_agents_alive: 0,
+            num_agents_must_finish: 0,
+            game_progress: HashMap::new(),
+            game_goal: HashMap::new(),
+            agent_positions: vec![],
+            game_state: GameState::Running,
+        };
+
+        let mut contend: String = String::new();
+        match file.read_to_string(&mut contend) {
+            Err(_) => return Err(BoardLoadingError::FileReadingError),
+            _ => (),
+        }
+        let table: Table;
+        match contend.parse::<Table>() {
+            Err(_) => return Err(BoardLoadingError::TOMLParsingError),
+            Ok(t) => table = t,
+        }
+        print!("{:?}", table);
+
+        match board.load_blocks(&table) {
+            Err(msg) => return Err(BoardLoadingError::BoardDescriptionError(msg)),
+            _ => (),
+        }
+        Ok(board)
+    }
+
+    fn load_blocks(&mut self, level_table: &Table) -> Result<(), String> {
+        match level_table.get("x_size") {
+            None => return Err(String::from("Missing x dimension\n")),
+            Some(val) => match val {
+                Value::Integer(val_int) => self.x_size = *val_int as u8,
+                _ => return Err(String::from("x dimension was not an integer")),
+            },
+        }
+        match level_table.get("y_size") {
+            None => return Err(String::from("Missing y dimension\n")),
+            Some(val) => match val {
+                Value::Integer(val_int) => self.x_size = *val_int as u8,
+                _ => return Err(String::from("y dimension was not an integer")),
+            },
+        }
+
+        match level_table.get("block") {
+            None => return Err(String::from("No blocks found")),
+            Some(blocks) => match blocks {
+                Value::Table(block_table) => {
+                    let x_coords: Vec<String> = block_table.keys().cloned().collect();
+                    for x in x_coords {
+                        match block_table.get(&x) {
+                            None => return Err(String::from("Block coordinate error")),
+                            Some(row_wrapped) => match row_wrapped {
+                                Value::Table(row) => {
+                                    let y_coords: Vec<String> = row.keys().cloned().collect();
+                                    for y in y_coords {
+                                        let block: &Table;
+                                        match row.get(&y) {
+                                            None => {
+                                                return Err(String::from("Block has no entries"));
+                                            }
+                                            Some(block_wrapped) => match block_wrapped {
+                                                Value::Table(t) => block = t,
+                                                _ => {
+                                                    return Err(String::from(
+                                                        "Block has no entries",
+                                                    ));
+                                                }
+                                            },
+                                        }
+                                        let x_as_int: Index;
+                                        let y_as_int: Index;
+
+                                        match x.parse::<Index>() {
+                                            Ok(num) => x_as_int = num,
+                                            Err(_) => {
+                                                return Err(String::from(
+                                                    "Coordinate not specified correctly",
+                                                ));
+                                            }
+                                        }
+                                        match y.parse::<Index>() {
+                                            Ok(num) => y_as_int = num,
+                                            Err(_) => {
+                                                return Err(String::from(
+                                                    "Coordinate not specified correctly",
+                                                ));
+                                            }
+                                        }
+
+                                        if self.out_of_bounds(Coordinate {
+                                            x: x_as_int,
+                                            y: y_as_int,
+                                        }) {
+                                            return Err(String::from("Block out of bounds"));
+                                        }
+                                        match block_factory(block) {
+                                            Err(msg) => return Err(msg),
+                                            Ok(b) => {
+                                                self.set_block(
+                                                    Coordinate {
+                                                        x: x_as_int,
+                                                        y: y_as_int,
+                                                    },
+                                                    b,
+                                                );
+                                                return Ok(());
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => return Err(String::from("Blocks not properly specified")),
+                            },
+                        }
+                    }
+                }
+                _ => return Err(String::from("Blocks not properly specified")),
+            },
+        }
+
+        Ok(())
     }
 }
