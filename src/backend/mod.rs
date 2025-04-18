@@ -43,6 +43,7 @@ impl Board {
     }
 
     pub fn read_block(&self, coordinate: Coordinate) -> &Box<dyn Block> {
+        assert!(!self.out_of_bounds(coordinate));
         let index = self.coordinate_to_index(coordinate);
         &self.board[index]
     }
@@ -105,11 +106,6 @@ impl Board {
         let mut steps_so_far: usize = 0;
 
         while current_sliding != SlideType::NoSlide {
-            print!(
-                "Current Position: ({}, {})\n",
-                current_coordinate.x, current_coordinate.y
-            );
-
             let target_coordinate = current_coordinate.move_direction(current_direction);
 
             if self.out_of_bounds(target_coordinate) {
@@ -367,7 +363,6 @@ impl Board {
             Err(_) => return Err(BoardLoadingError::TOMLParsingError),
             Ok(t) => table = t,
         }
-        print!("{:?}", table);
 
         match table.get("x_size") {
             None => {
@@ -474,14 +469,12 @@ impl Board {
             Some(blocks) => match blocks {
                 Value::Table(block_table) => {
                     let x_coords: Vec<String> = block_table.keys().cloned().collect();
-                    print!("x coordinates = {:?}\n", x_coords);
                     for x in x_coords {
                         match block_table.get(&x) {
                             None => return Err(String::from("Block coordinate error")),
                             Some(row_wrapped) => match row_wrapped {
                                 Value::Table(row) => {
                                     let y_coords: Vec<String> = row.keys().cloned().collect();
-                                    print!("y coordinates = {:?} for x = {:?}\n", y_coords, x);
                                     for y in y_coords {
                                         let block: &Table;
                                         match row.get(&y) {
@@ -521,10 +514,6 @@ impl Board {
                                             x: x_as_int,
                                             y: y_as_int,
                                         }) {
-                                            print!(
-                                                "Placing block at position ({}, {}) with dimensions {}, {}",
-                                                x_as_int, y_as_int, self.x_size, self.y_size
-                                            );
                                             return Err(String::from("Block out of bounds"));
                                         }
                                         match block_factory(block) {
@@ -638,14 +627,6 @@ impl Board {
                                     };
                                     self.process_update(update);
                                 } else {
-                                    print!(
-                                        "Trying to place agent {} at position {:?} did not work, present block is \n",
-                                        agent_id,
-                                        Coordinate {
-                                            x: x as u8,
-                                            y: y as u8
-                                        }
-                                    );
                                     return Err(String::from(
                                         "Agent start placed on block that does not support agents",
                                     ));
@@ -693,10 +674,6 @@ impl Board {
                 Some(num_unwrapped) => match num_unwrapped {
                     Value::Integer(num) => cond_value = *num as u8,
                     _ => {
-                        print!(
-                            "Victory Condition = {:?} with unwrapped value = {:?}",
-                            condition, num_unwrapped
-                        );
                         return Err(String::from(
                             "Victory condition must be assigned integer value",
                         ));

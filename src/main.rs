@@ -4,14 +4,14 @@ mod utils_backend;
 use utils_backend::{AgentID, Coordinate, Direction, Index, TextureType};
 
 use std::collections::HashSet;
-use std::io;
+use std::io::{self};
 
 //use colored::Colorize;
 
 fn print_board(board: &Board) {
     let dimensions: (Index, Index) = board.get_dimensions();
 
-    for y in 0..dimensions.0 {
+    for y in 0..dimensions.1 {
         for x in 0..dimensions.0 {
             match board.read_block(Coordinate { x, y }).get_texture() {
                 TextureType::BasicImpassable => {
@@ -145,9 +145,9 @@ fn char_to_direction(input: &String) -> Result<Direction, String> {
     Err(String::from("Not a direction"))
 }
 
-fn run_game_console(file: &str) -> () {
+fn run_game_console(file: String) -> () {
     let mut board: Board;
-    match Board::from_file(file) {
+    match Board::from_file(file.as_str()) {
         Err(msg) => {
             match msg {
                 BoardLoadingError::FileNotFound => print!("File not found"),
@@ -219,17 +219,19 @@ fn run_game_console(file: &str) -> () {
 }
 
 fn main() {
-    //run_game_console();
-    match Board::from_file("levels/testing_levels/example0.toml") {
-        Err(msg) => match msg {
-            BoardLoadingError::FileNotFound => print!("File not found"),
-            BoardLoadingError::FileReadingError => print!("File could not be read"),
-            BoardLoadingError::TOMLParsingError => print!("TOML parsing failed"),
-            BoardLoadingError::BoardDescriptionError(text) => print!("{}", text),
-        },
-        _ => (),
-    }
-    print!("\n\n\n");
+    let stdin = io::stdin();
+    let input = &mut String::new();
 
-    run_game_console("levels/testing_levels/example0.toml");
+    print!("Please enter which testing level you want to play:\n");
+
+    input.clear();
+    stdin.read_line(input).unwrap();
+
+    let mut path = String::from("levels/testing_levels/");
+    path.push_str(input.trim());
+    path.push_str(".toml");
+
+    print!("{}", path.as_str());
+
+    run_game_console(path);
 }
