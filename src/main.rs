@@ -145,8 +145,20 @@ fn char_to_direction(input: &String) -> Result<Direction, String> {
     Err(String::from("Not a direction"))
 }
 
-fn run_game_console() -> () {
-    let mut board: Board = Board::new_test();
+fn run_game_console(file: &str) -> () {
+    let mut board: Board;
+    match Board::from_file(file) {
+        Err(msg) => {
+            match msg {
+                BoardLoadingError::FileNotFound => print!("File not found"),
+                BoardLoadingError::FileReadingError => print!("File could not be read"),
+                BoardLoadingError::TOMLParsingError => print!("TOML parsing failed"),
+                BoardLoadingError::BoardDescriptionError(text) => print!("{}", text),
+            }
+            return;
+        }
+        Ok(b) => board = b,
+    };
     print_board(&board);
 
     let stdin = io::stdin();
@@ -219,5 +231,5 @@ fn main() {
     }
     print!("\n\n\n");
 
-    run_game_console();
+    run_game_console("levels/testing_levels/example0.toml");
 }

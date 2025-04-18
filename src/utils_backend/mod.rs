@@ -27,6 +27,7 @@ impl Coordinate {
                 x: self.x + 1,
                 y: self.y,
             },
+            Direction::None => self.clone(),
         }
     }
 }
@@ -39,6 +40,7 @@ pub enum Direction {
     Down,
     Left,
     Right,
+    None,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

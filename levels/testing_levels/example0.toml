@@ -4,10 +4,10 @@ num_agents = 2
 num_agents_must_finish = 2
 
 [victory_conditions]
-BlocksSatisfied = 5
+BlocksSatisfied = 1
 
 [agent.0]
-start = [0, 4]
+start = [4, 0]
 
 [agent.1]
 start = [4, 4]

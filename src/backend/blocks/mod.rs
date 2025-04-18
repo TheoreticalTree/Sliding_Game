@@ -147,6 +147,7 @@ impl Block for BasicBlock {
 }
 
 impl BasicBlock {
+    #[allow(dead_code)]
     pub fn new(
         passable: bool,
         starting_agents: &Vec<AgentID>,
@@ -179,6 +180,7 @@ impl BasicBlock {
 
                 if let Some(wrapped) = tags.get(&String::from("passable")) {
                     if let Value::Boolean(val) = wrapped {
+                        print!("Placing block with passable value: {}\n", val);
                         block.passable = *val;
                     }
                 }
