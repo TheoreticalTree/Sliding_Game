@@ -371,7 +371,7 @@ impl Board {
                 )));
             }
             Some(num_unwrapped) => match num_unwrapped {
-                Value::Integer(num) => board.x_size = *num as u8,
+                Value::Integer(num) => board.x_size = *num as Index,
                 _ => {
                     return Err(BoardLoadingError::BoardDescriptionError(String::from(
                         "x_size must be an integer",
@@ -386,7 +386,7 @@ impl Board {
                 )));
             }
             Some(num_unwrapped) => match num_unwrapped {
-                Value::Integer(num) => board.y_size = *num as u8,
+                Value::Integer(num) => board.y_size = *num as Index,
                 _ => {
                     return Err(BoardLoadingError::BoardDescriptionError(String::from(
                         "y_size must be an integer",
@@ -448,14 +448,14 @@ impl Board {
         match level_table.get("x_size") {
             None => return Err(String::from("Missing x dimension\n")),
             Some(val) => match val {
-                Value::Integer(val_int) => self.x_size = *val_int as u8,
+                Value::Integer(val_int) => self.x_size = *val_int as Index,
                 _ => return Err(String::from("x dimension was not an integer")),
             },
         }
         match level_table.get("y_size") {
             None => return Err(String::from("Missing y dimension\n")),
             Some(val) => match val {
-                Value::Integer(val_int) => self.y_size = *val_int as u8,
+                Value::Integer(val_int) => self.y_size = *val_int as Index,
                 _ => return Err(String::from("y dimension was not an integer")),
             },
         }
@@ -601,8 +601,8 @@ impl Board {
                         if let Value::Integer(x) = arr[0] {
                             if let Value::Integer(y) = arr[1] {
                                 if self.out_of_bounds(Coordinate {
-                                    x: x as u8,
-                                    y: y as u8,
+                                    x: x as Index,
+                                    y: y as Index,
                                 }) {
                                     return Err(String::from(
                                         "Agent start position is out of bounds",
@@ -610,20 +610,20 @@ impl Board {
                                 }
                                 if self
                                     .get_block(Coordinate {
-                                        x: x as u8,
-                                        y: y as u8,
+                                        x: x as Index,
+                                        y: y as Index,
                                     })
                                     .can_enter(Direction::None)
                                 {
                                     let update: StatusUpdate = self
                                         .get_block(Coordinate {
-                                            x: x as u8,
-                                            y: y as u8,
+                                            x: x as Index,
+                                            y: y as Index,
                                         })
                                         .enter_agent(agent_id);
                                     self.agent_positions[agent_id as usize] = Coordinate {
-                                        x: x as u8,
-                                        y: y as u8,
+                                        x: x as Index,
+                                        y: y as Index,
                                     };
                                     self.process_update(update);
                                 } else {

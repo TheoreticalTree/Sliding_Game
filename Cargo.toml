@@ -7,3 +7,12 @@ edition = "2024"
 colored = "3.0.0"
 toml = "0.8.20"
 serde = {version = "1.0.219", features = ["derive"]} 
+bevy = "0.15.3"
+
+# Enable a small amount of optimization in the dev profile.
+[profile.dev]
+opt-level = 1
+
+# Enable a large amount of optimization in the dev profile for dependencies.
+[profile.dev.package."*"]
+opt-level = 3

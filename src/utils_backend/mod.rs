@@ -1,4 +1,4 @@
-pub type Index = u8;
+pub type Index = i8;
 
 pub type AgentID = u8;
 
@@ -32,7 +32,7 @@ impl Coordinate {
     }
 }
 
-pub const OUT_OF_BOUND: Coordinate = Coordinate { x: 255, y: 255 };
+pub const OUT_OF_BOUND: Coordinate = Coordinate { x: -1, y: -1 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Direction {
