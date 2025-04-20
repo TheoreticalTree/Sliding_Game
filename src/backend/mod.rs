@@ -272,7 +272,10 @@ impl Board {
     }
 
     fn out_of_bounds(&self, coordinate: Coordinate) -> bool {
-        coordinate.x >= self.x_size || coordinate.y >= self.y_size
+        coordinate.x >= self.x_size
+            || coordinate.x < 0
+            || coordinate.y >= self.y_size
+            || coordinate.y < 0
     }
 
     #[allow(dead_code)]

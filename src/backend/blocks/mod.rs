@@ -52,7 +52,7 @@ pub trait Block {
         panic!("Tried to render on a block that does not implement rendering");
     }
 
-    /// Turns a block into a table such that feeding the table to Block_factory produces the block again
+    // Turns a block into a table such that feeding the table to Block_factory produces the block again
     // fn to_table(&self) -> Table;
 }
 
