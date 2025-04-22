@@ -164,9 +164,11 @@ fn run_game_console(file: String) -> () {
     let stdin = io::stdin();
     let input = &mut String::new();
 
-    while board.get_game_state() == GameState::Running {
+    loop {
         input.clear();
-        print!("Which Agent do you want to move?\n");
+        print!(
+            "Do you want to enter an agent (please type the ID) or undo the last action (type undo)?\n"
+        );
         match stdin.read_line(input) {
             Err(_) => {
                 print!("Somehow that input failed, please try again.\n");
@@ -202,18 +204,24 @@ fn run_game_console(file: String) -> () {
                     }
                 }
                 Err(_) => {
-                    print!("That was not a number.\n");
+                    if input.trim() == String::from("undo") {
+                        board.undo();
+                    }
                 }
             },
         }
         print_board(&board);
-    }
-
-    match board.get_game_state() {
-        GameState::Won => print!("\n\nCONGRATULATIONS! YOU ARE A WINNER!\n"),
-        GameState::Lost => print!("\n\nWomp womp, you lost.\n"),
-        GameState::Running => {
-            print!("\n\nSome kind of gub relating to the game state occured.\nMost curious.")
+        match board.get_game_state() {
+            GameState::Won => {
+                print!("\n\nCONGRATULATIONS! YOU ARE A WINNER!\n");
+                return;
+            }
+            GameState::Lost => {
+                print!("\n\nWomp womp, you lost.\n");
+                board.undo();
+                print_board(&board);
+            }
+            GameState::Running => (),
         }
     }
 }

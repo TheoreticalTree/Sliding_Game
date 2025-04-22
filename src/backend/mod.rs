@@ -3,8 +3,8 @@ mod blocks;
 use blocks::{Air, BasicBlock, Block, block_factory};
 
 use crate::utils_backend::{
-    AgentID, Coordinate, Direction, GoalType, HitResult, Index, OUT_OF_BOUND, ProgressUpdates,
-    SlideType, StatusUpdate,
+    AgentID, Coordinate, Direction, GoalType, HitResult, Index, OUT_OF_BOUND, PlayerInput,
+    ProgressUpdates, SlideType, StatusUpdate,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -24,15 +24,20 @@ pub enum GameState {
 
 pub struct Board {
     board: Vec<Box<dyn Block>>,
+    /// Stores tables from whch the board original position can be restored
+    board_start_configuration: Vec<Table>,
     x_size: Index,
     y_size: Index,
     num_agents: u8,
     num_agents_alive: u8,
     num_agents_must_finish: u8,
     game_progress: HashMap<String, u8>,
+    game_progress_start: HashMap<String, u8>,
     game_goal: HashMap<String, GoalType>,
     agent_positions: Vec<Coordinate>,
+    agent_start_positions: Vec<Coordinate>,
     game_state: GameState,
+    action_stack: Vec<PlayerInput>,
 }
 
 pub struct ActionLog {}
@@ -52,6 +57,30 @@ impl Board {
         (self.x_size, self.y_size)
     }
 
+    pub fn undo(&mut self) -> () {
+        if self.action_stack.is_empty() {
+            return;
+        }
+
+        // TODO consider maybe doing something more pretty than just copying the entire stack
+        self.action_stack.pop();
+        let action_stack_frozen: Vec<PlayerInput> = self.action_stack.clone();
+
+        self.reset_game();
+
+        print!("Num agents alive: {}\n", self.num_agents_alive);
+
+        self.action_stack.clear();
+
+        for action in action_stack_frozen {
+            print!("Num agents alive: {}\n", self.num_agents_alive);
+            match action {
+                PlayerInput::Move(agent, direction) => self.move_agent(agent, direction),
+                PlayerInput::Slide(agent, direction) => self.slide_agent(agent, direction),
+            };
+        }
+    }
+
     pub fn can_move_agent(&self, agent: AgentID, direction: Direction) -> bool {
         assert!(agent < self.num_agents as AgentID);
         assert!(self.game_state == GameState::Running);
@@ -68,6 +97,8 @@ impl Board {
     pub fn move_agent(&mut self, agent: AgentID, direction: Direction) -> ActionLog {
         assert!(agent < self.num_agents as AgentID);
         assert!(self.game_state == GameState::Running);
+
+        self.action_stack.push(PlayerInput::Move(agent, direction));
 
         let current_coordinate: Coordinate = self.agent_positions[agent as usize];
         let target_coordinate: Coordinate =
@@ -93,6 +124,9 @@ impl Board {
     pub fn slide_agent(&mut self, start_agent: AgentID, direction: Direction) -> ActionLog {
         assert!(start_agent < self.num_agents as AgentID);
         assert!(self.game_state == GameState::Running);
+
+        self.action_stack
+            .push(PlayerInput::Slide(start_agent, direction));
 
         let mut current_coordinate: Coordinate = self.agent_positions[start_agent as usize];
 
@@ -134,6 +168,7 @@ impl Board {
             steps_so_far += 1;
 
             if steps_so_far > MAXIMUM_STEP_NUMBER {
+                print!("Lost due to too many steps\n");
                 self.game_state = GameState::Lost;
                 return ActionLog {};
             }
@@ -160,6 +195,10 @@ impl Board {
 
             if self.num_agents_alive < self.num_agents_must_finish {
                 //TODO write logic for loosing the game
+                print!(
+                    "Lost due to killing too many agents. Agents alive {} and {} agents must finish\n",
+                    self.num_agents_alive, self.num_agents
+                );
                 self.game_state = GameState::Lost;
             }
 
@@ -247,6 +286,7 @@ impl Board {
         }
 
         if all_satisfied && self.game_state == GameState::Running {
+            print!("Won due to satisfying all conditions\n");
             self.game_state = GameState::Won;
         } else if self.game_state != GameState::Lost {
             self.game_state = GameState::Running;
@@ -282,15 +322,19 @@ impl Board {
     pub fn new_test() -> Self {
         let mut ret: Board = Board {
             board: vec![],
+            board_start_configuration: vec![],
             x_size: 5,
             y_size: 5,
             num_agents: 2,
             num_agents_alive: 2,
             num_agents_must_finish: 2,
             game_progress: HashMap::new(),
+            game_progress_start: HashMap::new(),
             game_goal: HashMap::new(),
             agent_positions: vec![],
+            agent_start_positions: vec![],
             game_state: GameState::Running,
+            action_stack: vec![],
         };
 
         ret.game_progress.insert(String::from("BlocksSatisfied"), 0);
@@ -345,15 +389,19 @@ impl Board {
 
         let mut board: Board = Board {
             board: vec![],
+            board_start_configuration: vec![],
             x_size: 0,
             y_size: 0,
             num_agents: 0,
             num_agents_alive: 0,
             num_agents_must_finish: 0,
             game_progress: HashMap::new(),
+            game_progress_start: HashMap::new(),
             game_goal: HashMap::new(),
             agent_positions: vec![],
+            agent_start_positions: vec![],
             game_state: GameState::Running,
+            action_stack: vec![],
         };
 
         let mut contend: String = String::new();
@@ -366,68 +414,6 @@ impl Board {
             Err(_) => return Err(BoardLoadingError::TOMLParsingError),
             Ok(t) => table = t,
         }
-
-        match table.get("x_size") {
-            None => {
-                return Err(BoardLoadingError::BoardDescriptionError(String::from(
-                    "Missing x dimension",
-                )));
-            }
-            Some(num_unwrapped) => match num_unwrapped {
-                Value::Integer(num) => board.x_size = *num as Index,
-                _ => {
-                    return Err(BoardLoadingError::BoardDescriptionError(String::from(
-                        "x_size must be an integer",
-                    )));
-                }
-            },
-        }
-        match table.get("y_size") {
-            None => {
-                return Err(BoardLoadingError::BoardDescriptionError(String::from(
-                    "Missing y dimension",
-                )));
-            }
-            Some(num_unwrapped) => match num_unwrapped {
-                Value::Integer(num) => board.y_size = *num as Index,
-                _ => {
-                    return Err(BoardLoadingError::BoardDescriptionError(String::from(
-                        "y_size must be an integer",
-                    )));
-                }
-            },
-        }
-        match table.get("num_agents") {
-            None => {
-                return Err(BoardLoadingError::BoardDescriptionError(String::from(
-                    "Missing number of agents dimension",
-                )));
-            }
-            Some(num_unwrapped) => match num_unwrapped {
-                Value::Integer(num) => board.num_agents = *num as u8,
-                _ => {
-                    return Err(BoardLoadingError::BoardDescriptionError(String::from(
-                        "number of agents must be an integer",
-                    )));
-                }
-            },
-        }
-        match table.get("num_agents_must_finish") {
-            None => board.num_agents_must_finish = board.num_agents,
-            Some(num_unwrapped) => match num_unwrapped {
-                Value::Integer(num) => board.num_agents_must_finish = *num as u8,
-                _ => {
-                    return Err(BoardLoadingError::BoardDescriptionError(String::from(
-                        "number of agents must be an integer",
-                    )));
-                }
-            },
-        }
-
-        board.num_agents_alive = board.num_agents;
-        board
-            .agent_positions
-            .resize(board.num_agents as usize, OUT_OF_BOUND);
 
         match board.load_victory_conditions(&table) {
             Err(msg) => return Err(BoardLoadingError::BoardDescriptionError(msg)),
@@ -463,7 +449,7 @@ impl Board {
             },
         }
 
-        for _ in 0..(self.x_size + 1) * (self.y_size + 1) {
+        for _ in 0..self.x_size * self.y_size {
             self.board.push(Box::new(Air::new()));
         }
 
@@ -542,10 +528,51 @@ impl Board {
             },
         }
 
+        // Store the initial state of the board so it can be reconstructed for undo later
+        for x in 0..(self.x_size) {
+            for y in 0..(self.y_size) {
+                let table: Table = self
+                    .get_block(Coordinate {
+                        x: x as Index,
+                        y: y as Index,
+                    })
+                    .to_table();
+                self.board_start_configuration.push(table);
+            }
+        }
+
         Ok(())
     }
 
     fn load_agents(&mut self, table: &Table) -> Result<(), String> {
+        match table.get("num_agents") {
+            None => {
+                return Err(String::from("Missing number of agents dimension"));
+            }
+            Some(num_unwrapped) => match num_unwrapped {
+                Value::Integer(num) => self.num_agents = *num as u8,
+                _ => {
+                    return Err(String::from("number of agents must be an integer"));
+                }
+            },
+        }
+
+        self.num_agents_alive = self.num_agents;
+        self.agent_positions
+            .resize(self.num_agents as usize, OUT_OF_BOUND);
+        self.agent_start_positions
+            .resize(self.num_agents as usize, OUT_OF_BOUND);
+
+        match table.get("num_agents_must_finish") {
+            None => self.num_agents_must_finish = self.num_agents,
+            Some(num_unwrapped) => match num_unwrapped {
+                Value::Integer(num) => self.num_agents_must_finish = *num as u8,
+                _ => {
+                    return Err(String::from("number of agents must be an integer"));
+                }
+            },
+        }
+
         let agents: &Table;
 
         match table.get("agent") {
@@ -628,6 +655,10 @@ impl Board {
                                         x: x as Index,
                                         y: y as Index,
                                     };
+                                    self.agent_start_positions[agent_id as usize] = Coordinate {
+                                        x: x as Index,
+                                        y: y as Index,
+                                    };
                                     self.process_update(update);
                                 } else {
                                     return Err(String::from(
@@ -688,6 +719,43 @@ impl Board {
             self.game_goal
                 .insert(condition.clone(), GoalType::Exactly(cond_value));
         }
+
+        self.game_progress_start = self.game_progress.clone();
+
         Ok(())
+    }
+
+    /// Resets the entire game except for the action stack back to the start of the level
+    fn reset_game(&mut self) -> () {
+        self.game_progress = self.game_progress_start.clone();
+
+        for x in 0..self.x_size {
+            for y in 0..self.y_size {
+                self.set_block(
+                    Coordinate {
+                        x: x as Index,
+                        y: y as Index,
+                    },
+                    block_factory(
+                        &self.board_start_configuration[self.coordinate_to_index(Coordinate {
+                            x: x as Index,
+                            y: y as Index,
+                        })],
+                    )
+                    .unwrap(),
+                );
+            }
+        }
+
+        self.num_agents_alive = self.num_agents;
+        self.agent_positions = self.agent_start_positions.clone();
+        for agent in 0..self.num_agents {
+            let update: StatusUpdate = self
+                .get_block(self.agent_positions[agent as usize])
+                .enter_agent(agent);
+            self.process_update(update);
+        }
+
+        self.game_state = GameState::Running;
     }
 }

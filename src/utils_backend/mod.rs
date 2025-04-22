@@ -44,6 +44,12 @@ pub enum Direction {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlayerInput {
+    Move(AgentID, Direction),
+    Slide(AgentID, Direction),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SlideType {
     NoSlide,
     FastSlide,

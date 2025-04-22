@@ -52,8 +52,8 @@ pub trait Block {
         panic!("Tried to render on a block that does not implement rendering");
     }
 
-    // Turns a block into a table such that feeding the table to Block_factory produces the block again
-    // fn to_table(&self) -> Table;
+    /// Turns a block into a table such that feeding the table to Block_factory produces the block again
+    fn to_table(&self) -> Table;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,6 +66,12 @@ impl Block for Air {
 
     fn get_texture(&self) -> TextureType {
         TextureType::None
+    }
+
+    fn to_table(&self) -> Table {
+        let mut ret: Table = Table::new();
+        ret.insert(String::from("type"), Value::String(String::from("air")));
+        ret
     }
 }
 
@@ -147,6 +153,37 @@ impl Block for BasicBlock {
             return TextureType::BasicImpassable;
         }
     }
+
+    fn to_table(&self) -> Table {
+        let mut ret: Table = Table::new();
+        let mut tags: Table = Table::new();
+        ret.insert(
+            String::from("type"),
+            Value::String(String::from("basic_block")),
+        );
+        if !self.passable {
+            tags.insert(String::from("passable"), Value::Boolean(false));
+        }
+        match self.default_slide {
+            SlideType::FastSlide => (),
+            SlideType::SlowSlide(i) => {
+                tags.insert(String::from("default_slide"), Value::Integer(i as i64));
+            }
+            SlideType::NoSlide => {
+                tags.insert(String::from("default_slide"), Value::Integer(0));
+            }
+        };
+        if self.num_goal_agents > 0 {
+            tags.insert(
+                String::from("num_goal_agents"),
+                Value::Integer(self.num_goal_agents as i64),
+            );
+        }
+        if !tags.is_empty() {
+            ret.insert(String::from("tags"), Value::Table(tags));
+        }
+        ret
+    }
 }
 
 impl BasicBlock {
@@ -166,20 +203,20 @@ impl BasicBlock {
     }
 
     pub fn from_table(block_table: &Table) -> Result<Box<dyn Block>, String> {
+        let mut block: BasicBlock = BasicBlock {
+            passable: true,
+            agents: HashSet::new(),
+            default_slide: SlideType::FastSlide,
+            num_goal_agents: 0,
+        };
         match block_table.get("tags") {
-            None => Err(String::from("Missing Tags to construct basic block")),
+            None => return Ok(Box::new(block)),
             Some(tags_wrapped) => {
                 let tags: &Table;
                 match tags_wrapped {
                     Value::Table(t) => tags = t,
                     _ => return Err(String::from("Missing tags block")),
                 }
-                let mut block: BasicBlock = BasicBlock {
-                    passable: true,
-                    agents: HashSet::new(),
-                    default_slide: SlideType::FastSlide,
-                    num_goal_agents: 0,
-                };
 
                 if let Some(wrapped) = tags.get(&String::from("passable")) {
                     if let Value::Boolean(val) = wrapped {
@@ -221,6 +258,7 @@ pub fn block_factory(block_table: &Table) -> Result<Box<dyn Block>, String> {
                 Ok(block) => Ok(block),
                 Err(msg) => Err(msg),
             },
+            Value::String(s) if s.eq("air") => Ok(Box::new(Air::new())),
             _ => Err(String::from("Block type not recognized")),
         },
     }
