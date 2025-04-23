@@ -1,7 +1,6 @@
 mod backend;
-use backend::{Board, BoardLoadingError, GameState};
-mod utils_backend;
-use utils_backend::{AgentID, Coordinate, Direction, Index, TextureType};
+use backend::utils_backend::{AgentID, Coordinate, Direction, Index, TextureType};
+use backend::{Board, GameState, io::BoardLoadingError};
 
 use std::collections::HashSet;
 use std::io::{self};

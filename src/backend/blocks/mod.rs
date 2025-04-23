@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use toml::{Table, Value};
 
 /// Basic blocks used by the sliding game
-use crate::utils_backend::{
+use super::utils_backend::{
     AgentID, DestructionResult, Direction, HitResult, ProgressUpdates, SlideType, StatusUpdate,
     TextureType,
 };
